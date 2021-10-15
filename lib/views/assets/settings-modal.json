@@ -1,0 +1,15 @@
+{
+    "title": {
+        "type": "plain_text",
+        "text": "Standup Settings",
+        "emoji": true
+    },
+    "submit": {
+        "type": "plain_text",
+        "text": "Save",
+        "emoji": true
+    },
+    "type": "modal",
+    "callback_id": "modal_standup_settings",
+    "blocks": []
+}

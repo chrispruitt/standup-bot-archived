@@ -1,31 +1,33 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 )
 
 var (
-	SlackBotToken    string
-	SlackAppToken    string
-	BotName          string
-	ShellModeChannel string
-	ShellMode        bool
-	Debug            bool
+	SlackBotToken string
+	SlackAppToken string
+	Debug         bool
+	S3BrainBucket string
+	S3BrainKey    string
 )
 
 func init() {
-	SlackBotToken = getenv("SLACK_BOT_TOKEN", "").(string)
-	SlackAppToken = getenv("SLACK_APP_TOKEN", "").(string)
-	BotName = getenv("BOT_NAME", "slackbot").(string)
-	ShellMode = getenv("SHELL_MODE", false).(bool)
-	ShellModeChannel = getenv("SHELL_MODE_CHANNEL", "").(string)
-	Debug = getenv("DEBUG", true).(bool)
+	SlackBotToken = getenv("SLACK_BOT_TOKEN", "", true).(string)
+	SlackAppToken = getenv("SLACK_APP_TOKEN", "", true).(string)
+	S3BrainBucket = getenv("S3_BRAIN_BUCKET", "", false).(string)
+	S3BrainKey = getenv("S3_BRAIN_KEY", "", false).(string)
+	Debug = getenv("DEBUG", false, false).(bool)
 }
 
-func getenv(key string, fallback interface{}) interface{} {
+func getenv(key string, fallback interface{}, required bool) interface{} {
 	value := os.Getenv(key)
 	if len(value) == 0 {
+		if required {
+			panic(fmt.Sprintf("Missing required environment variable: '%s'", key))
+		}
 		return fallback
 	}
 

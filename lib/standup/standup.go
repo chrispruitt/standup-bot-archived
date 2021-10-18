@@ -9,56 +9,21 @@ import (
 	"github.com/chrispruitt/go-slackbot/lib/bot"
 	"github.com/chrispruitt/standup-bot/lib/types"
 	"github.com/lucasb-eyer/go-colorful"
+	logger "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 )
 
-var brain = Brain{Standups: make(map[string]types.StandupSettings)}
 var header = "Asynchronous Standups! Less time in meetings means more time getting things done. Keep the channel clean by using threads! To manage times, participants, etc, just type the `/standup` command."
-
-type Brain struct {
-	Standups map[string]types.StandupSettings `json:"standups"`
-}
-
-func init() {
-	// TODO sync brain to/from s3 file - use bot.RegisterPeriodicScript
-
-	bot.RegisterScript(bot.Script{
-		Name:    "test",
-		Matcher: "test",
-		Function: func(context *bot.ScriptContext) {
-			// declare settings within function scope
-			users, err := bot.SlackClient.GetUsersInfo("U01TDLJ5AG3")
-
-			fmt.Printf("USERS: %v\n", users)
-			fmt.Printf("ERR: %v\n", err)
-		},
-	})
-}
 
 func RegisterStandup(settings types.StandupSettings) error {
 
-	fmt.Printf("\n\nRegistering Standup \n %v\n\n", settings)
+	socketMode.Debugf("\n\nRegistering Standup \n %v\n\n", settings)
 
 	err := bot.RegisterPeriodicScript(bot.PeriodicScript{
 		Name:     fmt.Sprintf("standup-solicit-%s", settings.ChannelID),
 		CronSpec: settings.SolicitCronSpec,
 		Function: getSolicitStandupFunc(settings),
 	})
-
-	// bot.RegisterScript(bot.Script{
-	// 	Name:        fmt.Sprintf("standup-solicit-%s", settings.ChannelID),
-	// 	Matcher:     bot.Matcher(fmt.Sprintf("standup-solicit-%s", settings.ChannelID)),
-	// 	Description: "Test standup bot for a given channel",
-	// 	Function: func(context *bot.ScriptContext) {
-	// 		// declare settings within function scope
-	// 		settings := settings
-	// 		fmt.Println("standup solicit")
-
-	// 		for _, userId := range settings.Participants {
-	// 			bot.PostMessage(userId, settings.SolicitMsg)
-	// 		}
-	// 	},
-	// })
 
 	if err != nil {
 		return err
@@ -71,6 +36,7 @@ func RegisterStandup(settings types.StandupSettings) error {
 	})
 
 	brain.Standups[settings.ChannelID] = settings
+	brain.writeToS3()
 
 	return nil
 }
@@ -94,12 +60,9 @@ func getShareStandupFunc(settings types.StandupSettings) func() {
 
 		users, err := bot.SlackClient.GetUsersInfo(settings.Participants...)
 
-		fmt.Printf("USERS: %v\n", users)
-		fmt.Printf("ERR: %v\n", err)
-
 		conversations, err := getConversations()
 		if err != nil {
-			fmt.Println("Error getting conversations: ", err)
+			logger.Error("Error getting conversations: ", err)
 		}
 
 		// seed our random colors
@@ -108,22 +71,19 @@ func getShareStandupFunc(settings types.StandupSettings) func() {
 		for _, user := range *users {
 
 			if channel, ok := conversations[user.ID]; ok {
-				fmt.Println(channel.ID, user.Name)
-				notes, err := getStandupNote(channel.ID, settings.SolicitMsg)
+				notes, err := getStandupNote(channel.ID, settings.SolicitMsg, user.ID)
 				if err != nil {
-					fmt.Println(err)
+					logger.Error(err)
 					continue
 				}
 
-				// Shame people in the channel that aren't participating
-				// TODO
-				// if len(notes) == 0 {
-				// 	if shameParticipants == "true" {
-				// 		notes = append(notes, fmt.Sprintf(":poop: %s has no standup notes", user.Name))
-				// 	} else {
-				// 		continue
-				// 	}
-				// }
+				if len(notes) == 0 {
+					if settings.Shame {
+						notes = append(notes, fmt.Sprintf(":poop: %s has no standup notes", strings.Split(user.RealName, " ")[0]))
+					} else {
+						continue
+					}
+				}
 
 				attachments := []slack.Attachment{
 					{
@@ -140,15 +100,13 @@ func getShareStandupFunc(settings types.StandupSettings) func() {
 					slack.MsgOptionAttachments(attachments...))
 
 				if err != nil {
-					fmt.Printf("Error posting standup report: %s\n", err)
+					logger.Errorf("Error posting standup report: %s\n", err)
 				}
 
 			} else {
-				fmt.Printf("channel %s is orphaned", channel.ID)
+				logger.Errorf("channel %s is orphaned", channel.ID)
 			}
 		}
-
-		fmt.Println("standup share")
 	}
 }
 
@@ -167,7 +125,7 @@ func getConversations() (map[string]slack.Channel, error) {
 	return conversations, nil
 }
 
-func getStandupNote(channelID string, solicitStandupMessage string) ([]string, error) {
+func getStandupNote(channelID string, solicitStandupMessage string, userID string) ([]string, error) {
 	conversationHistory, err := bot.SlackClient.GetConversationHistory(&slack.GetConversationHistoryParameters{
 		ChannelID: channelID,
 		// Oldest:    fmt.Sprintf("%d.000001", (now.Add(time.Hour * time.Duration(-1))).Unix()),
@@ -179,11 +137,31 @@ func getStandupNote(channelID string, solicitStandupMessage string) ([]string, e
 	var txt []string
 
 	for _, m := range conversationHistory.Messages {
-
 		if m.Text == solicitStandupMessage {
+
+			threadReplies, _, _, _ := bot.SlackClient.GetConversationReplies(&slack.GetConversationRepliesParameters{
+				ChannelID: channelID,
+				Timestamp: m.ThreadTimestamp,
+			})
+
+			userThreadReplies := []string{}
+			for _, t := range threadReplies {
+				if t.User == userID {
+					txt = append(userThreadReplies, t.Text)
+				}
+			}
+
+			// If user replied in thread, then use only thread message for standup notes
+			if len(userThreadReplies) > 0 {
+				txt = userThreadReplies
+			}
 			break
 		}
-		txt = append(txt, m.Text)
+
+		// filter out any other standup solicitations for users in multiple standups
+		if m.User == userID {
+			txt = append(txt, m.Text)
+		}
 	}
 
 	return txt, nil
@@ -196,19 +174,3 @@ func reverse(ss []string) []string {
 	}
 	return ss
 }
-
-// for _, mType := range []string{"solicit", "standup"} {
-
-// 	cmdType := mType
-// 	err := bot.RegisterPeriodicScript(bot.PeriodicScript{
-// 		Name:     fmt.Sprintf("standup-%s-%s", cmdType, settings.ChannelID),
-// 		CronSpec: "*/1 * * * *",
-// 		Function: func() {
-// 			// TODO Solicit standup
-// 			fmt.Printf("%s standup solicit \n", cmdType)
-// 		},
-// 	})
-// 	if err != nil {
-// 		return err
-// 	}
-// }

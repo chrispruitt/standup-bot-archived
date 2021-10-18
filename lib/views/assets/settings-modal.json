@@ -11,5 +11,15 @@
     },
     "type": "modal",
     "callback_id": "modal_standup_settings",
-    "blocks": []
+    "blocks": [
+        {
+            "type": "header",
+            "block_id": "standup_channel_header",
+            "text": {
+                "type": "plain_text",
+                "text": "Select a Channel to Configure",
+                "emoji": true
+            }
+        }
+    ]
 }

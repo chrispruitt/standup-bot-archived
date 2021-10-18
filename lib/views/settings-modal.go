@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"encoding/json"
@@ -17,6 +18,8 @@ const (
 	SettingsModalCallBackId     = "modal_standup_settings"
 	ModalMeetingDaysBlockId     = "meeting_days"
 	ModalMeetingDaysActionId    = "meeting_days"
+	ModalShameBlockId           = "shame"
+	ModalShameActionId          = "shame"
 	ModalSolicitTimeBlockId     = "input_solicit_time"
 	ModalSolicitTimeActionId    = "input_solicit_time"
 	ModalShareTimeBlockId       = "input_share_time"
@@ -62,15 +65,21 @@ func GetSettingsModal(settings types.StandupSettings) slack.ModalViewRequest {
 	}
 
 	dynamicBlocks := []slack.Block{
-		buildChannelSelectBlockElement("Standup Channel", ModalStandupChannelBlockId, ModalStandupChannelActionId, settings.ChannelID),
-		buildUserMultiSelectBlockElement("Participants", ModalParticipantsBlockId, ModalParticipantsActionId, settings.Participants),
-		buildCheckboxGroupsBlockElement("Meeting Days", ModalMeetingDaysBlockId, ModalMeetingDaysActionId, checkBoxMeetingDaysOptions, initialDays),
-		buildTimePickerBlockElement("Solicit", ModalSolicitTimeBlockId, ModalSolicitTimeActionId, solicitTimeValue),
-		buildTimePickerBlockElement("Share", ModalShareTimeBlockId, ModalShareTimeActionId, shareTimeValue),
-		buildTextInput("Solicit Message", ModalSolicitMessgaeBlockId, ModalSolicitMessageActionId, true, "Message to prompt user to report their standup notes.", settings.SolicitMsg),
+		buildChannelSelect("Standup Channel", ModalStandupChannelBlockId, ModalStandupChannelActionId, settings.ChannelID),
 	}
 
-	view.Blocks.BlockSet = append(dynamicBlocks, view.Blocks.BlockSet...)
+	if settings.ChannelID != "" {
+		dynamicBlocks = append(dynamicBlocks, []slack.Block{
+			buildUserMultiSelect("Participants", ModalParticipantsBlockId, ModalParticipantsActionId, settings.Participants),
+			buildCheckboxGroup("Meeting Days", ModalMeetingDaysBlockId, ModalMeetingDaysActionId, checkBoxMeetingDaysOptions, initialDays),
+			buildRadioGroup("Shame", ModalShameBlockId, ModalShameActionId, map[string]string{"Yes": "true", "No": "false"}, strconv.FormatBool(settings.Shame)),
+			buildTimePicker("Solicit", ModalSolicitTimeBlockId, ModalSolicitTimeActionId, solicitTimeValue),
+			buildTimePicker("Share", ModalShareTimeBlockId, ModalShareTimeActionId, shareTimeValue),
+			buildTextInput("Solicit Message", ModalSolicitMessgaeBlockId, ModalSolicitMessageActionId, true, "Message to prompt user to report their standup notes.", settings.SolicitMsg),
+		}...)
+	}
+
+	view.Blocks.BlockSet = append(view.Blocks.BlockSet, dynamicBlocks...)
 
 	return view
 }

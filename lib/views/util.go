@@ -2,7 +2,7 @@ package views
 
 import "github.com/slack-go/slack"
 
-func buildChannelSelectBlockElement(label string, blockID string, actionID string, initialChannelId string) *slack.InputBlock {
+func buildChannelSelect(label string, blockID string, actionID string, initialChannelId string) *slack.ActionBlock {
 	element := slack.NewOptionsGroupSelectBlockElement(
 		slack.OptTypeChannels,
 		slack.NewTextBlockObject(
@@ -16,19 +16,13 @@ func buildChannelSelectBlockElement(label string, blockID string, actionID strin
 
 	element.InitialChannel = initialChannelId
 
-	return slack.NewInputBlock(
+	return slack.NewActionBlock(
 		blockID,
-		slack.NewTextBlockObject(
-			"plain_text",
-			label,
-			false,
-			false,
-		),
 		element,
 	)
 }
 
-func buildUserMultiSelectBlockElement(label string, blockID, actionID string, initialParticipants []string) *slack.InputBlock {
+func buildUserMultiSelect(label string, blockID, actionID string, initialParticipants []string) *slack.InputBlock {
 	element := slack.NewOptionsGroupMultiSelectBlockElement(
 		slack.MultiOptTypeUser,
 		slack.NewTextBlockObject(
@@ -54,7 +48,7 @@ func buildUserMultiSelectBlockElement(label string, blockID, actionID string, in
 	)
 }
 
-func buildCheckboxGroupsBlockElement(label string, blockID, actionID string, options map[string]string, initialOptions []string) *slack.InputBlock {
+func buildCheckboxGroup(label string, blockID, actionID string, options map[string]string, initialOptions []string) *slack.InputBlock {
 	element := slack.NewCheckboxGroupsBlockElement(actionID)
 
 	for key, val := range options {
@@ -86,7 +80,40 @@ func buildCheckboxGroupsBlockElement(label string, blockID, actionID string, opt
 	)
 }
 
-func buildTimePickerBlockElement(label string, blockID, actionID string, initialValue string) *slack.InputBlock {
+func buildRadioGroup(label string, blockID, actionID string, options map[string]string, initialOption string) *slack.InputBlock {
+	element := slack.NewRadioButtonsBlockElement(actionID)
+
+	for key, val := range options {
+		option := slack.NewOptionBlockObject(
+			val,
+			slack.NewTextBlockObject(
+				"plain_text",
+				key,
+				false,
+				false,
+			),
+			nil,
+		)
+		element.Options = append(element.Options, option)
+
+		if initialOption == val {
+			element.InitialOption = option
+		}
+	}
+
+	return slack.NewInputBlock(
+		blockID,
+		slack.NewTextBlockObject(
+			"plain_text",
+			label,
+			false,
+			false,
+		),
+		element,
+	)
+}
+
+func buildTimePicker(label string, blockID, actionID string, initialValue string) *slack.InputBlock {
 	element := slack.NewTimePickerBlockElement(actionID)
 
 	element.InitialTime = initialValue

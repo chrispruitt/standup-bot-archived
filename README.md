@@ -12,7 +12,34 @@ This is a rewrite of https://github.com/justmiles/standup-bot to allow for in-ap
 1. Get bot and bot user tokens and set environment variables defined in `lib/config/main.go`
 1. Set up s3 bucket and provide AWS Creds if you would like standup settings to persists between restarts
 
+**Docker**
+
+```bash
+# quickstart
+docker run \
+    -e SLACK_BOT_TOKEN=xoxb-blahblah \
+    -e SLACK_APP_TOKEN=xapp-blahblah \
+    -t chrispruitt/standup-bot
+
+# with persistant brain
+docker run \
+    -e SLACK_BOT_TOKEN=xoxb-blahblah \
+    -e SLACK_APP_TOKEN=xapp-blahblah \
+    -e S3_BRAIN_BUCKET=some_s3_bucket \
+    -e S3_BRAIN_KEY=brain.json \
+    -e AWS_REGION \
+	-e AWS_ACCESS_KEY_ID \
+	-e AWS_SECRET_ACCESS_KEY \
+	-e AWS_SESSION_TOKEN \
+    -t chrispruitt/standup-bot
+```
+
+**Configure your bot**
+
+In slack just type `/standup`
+
 **Test your bot**
+
 In a channel type the below commands - this will create a mock standup with you as the sole participant.
 `/standup solicit`
 `/standup share`

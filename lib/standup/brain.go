@@ -84,6 +84,10 @@ func (b *Brain) writeToS3() error {
 
 	_, err = s3Client.PutObject(putObjectInput)
 
+	if err != nil {
+		return err
+	}
+
 	logger.Infof("Brain saved to s3://%s/%s", config.S3BrainBucket, config.S3BrainKey)
 
 	return nil

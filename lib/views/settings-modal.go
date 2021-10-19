@@ -73,8 +73,8 @@ func GetSettingsModal(settings types.StandupSettings) slack.ModalViewRequest {
 			buildUserMultiSelect("Participants", ModalParticipantsBlockId, ModalParticipantsActionId, settings.Participants),
 			buildCheckboxGroup("Meeting Days", ModalMeetingDaysBlockId, ModalMeetingDaysActionId, checkBoxMeetingDaysOptions, initialDays),
 			buildRadioGroup("Shame", ModalShameBlockId, ModalShameActionId, map[string]string{"Yes": "true", "No": "false"}, strconv.FormatBool(settings.Shame)),
-			buildTimePicker("Solicit", ModalSolicitTimeBlockId, ModalSolicitTimeActionId, solicitTimeValue),
-			buildTimePicker("Share", ModalShareTimeBlockId, ModalShareTimeActionId, shareTimeValue),
+			buildTimePicker("Solicit (UTC)", ModalSolicitTimeBlockId, ModalSolicitTimeActionId, solicitTimeValue),
+			buildTimePicker("Share (UTC)", ModalShareTimeBlockId, ModalShareTimeActionId, shareTimeValue),
 			buildTextInput("Solicit Message", ModalSolicitMessgaeBlockId, ModalSolicitMessageActionId, true, "Message to prompt user to report their standup notes.", settings.SolicitMsg),
 		}...)
 	}

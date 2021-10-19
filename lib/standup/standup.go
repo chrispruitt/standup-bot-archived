@@ -59,6 +59,10 @@ func getShareStandupFunc(settings types.StandupSettings) func() {
 
 		users, err := bot.SlackClient.GetUsersInfo(settings.Participants...)
 
+		if err != nil {
+			logger.Error("Error getting users: ", err)
+		}
+
 		conversations, err := getConversations()
 		if err != nil {
 			logger.Error("Error getting conversations: ", err)

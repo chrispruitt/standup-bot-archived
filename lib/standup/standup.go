@@ -17,7 +17,7 @@ var header = "Asynchronous Standups! Less time in meetings means more time getti
 
 func RegisterStandup(settings types.StandupSettings) error {
 
-	socketMode.Debugf("\n\nRegistering Standup \n %v\n\n", settings)
+	logger.Infof("\n\nRegistering Standup \n %v\n\n", settings)
 
 	err := bot.RegisterPeriodicScript(bot.PeriodicScript{
 		Name:     fmt.Sprintf("standup-solicit-%s", settings.ChannelID),

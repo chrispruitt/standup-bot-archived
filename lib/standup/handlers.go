@@ -8,6 +8,7 @@ import (
 
 	"github.com/chrispruitt/standup-bot/lib/types"
 	"github.com/chrispruitt/standup-bot/lib/views"
+	logger "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 )
 
@@ -74,7 +75,17 @@ func submitSettingsModal(payload slack.InteractionCallback) {
 
 	socketMode.Debugf("standup submission settings: %v", settings)
 
-	RegisterStandup(settings)
+	err := RegisterStandup(settings)
+	if err != nil {
+		logger.Errorf("Error Registering Standup: %v", err)
+		return
+	}
+
+	// Save brain after successful submission
+	err = brain.writeToS3()
+	if err != nil {
+		logger.Errorf("Error to writing to s3: %v", err)
+	}
 }
 
 func handleSettingsModalSelectChannelAction(payload slack.InteractionCallback) {

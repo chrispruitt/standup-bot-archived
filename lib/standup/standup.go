@@ -36,10 +36,6 @@ func RegisterStandup(settings types.StandupSettings) error {
 	})
 
 	brain.Standups[settings.ChannelID] = settings
-	err = brain.writeToS3()
-	if err != nil {
-		logger.Errorf("Error to writing to s3: %v", err)
-	}
 
 	return nil
 }

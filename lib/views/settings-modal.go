@@ -35,7 +35,7 @@ const (
 //go:embed assets/*
 var assets embed.FS
 
-func GetSettingsModal(settings types.StandupSettings) slack.ModalViewRequest {
+func GetSettingsModal(settings types.StandupSettings, tzOffsetHours int) slack.ModalViewRequest {
 
 	// Any static blocks can be declared in the json file built using the slack block kit builder.
 	str, err := assets.ReadFile("assets/settings-modal.json")
@@ -57,10 +57,16 @@ func GetSettingsModal(settings types.StandupSettings) slack.ModalViewRequest {
 	solicitTimeValue := ""
 	if solicitCronSpec := strings.Split(settings.SolicitCronSpec, " "); len(solicitCronSpec) >= 4 {
 		initialDays = strings.Split(solicitCronSpec[4], ",")
+		fmt.Printf("ORIGINAL: %s\n", solicitCronSpec[1])
+		// Account for user timezone
+		solicitCronSpec[1] = tzAdjustment(solicitCronSpec[1], tzOffsetHours)
+		fmt.Printf("CORRECTED: %s\n", solicitCronSpec[1])
 		solicitTimeValue = fmt.Sprintf("%s:%s", solicitCronSpec[1], solicitCronSpec[0])
 	}
 	shareTimeValue := ""
 	if shareCronSpec := strings.Split(settings.ShareCronSpec, " "); len(shareCronSpec) >= 4 {
+		// Account for user timezone
+		shareCronSpec[1] = tzAdjustment(shareCronSpec[1], tzOffsetHours)
 		shareTimeValue = fmt.Sprintf("%s:%s", shareCronSpec[1], shareCronSpec[0])
 	}
 
@@ -82,4 +88,17 @@ func GetSettingsModal(settings types.StandupSettings) slack.ModalViewRequest {
 	view.Blocks.BlockSet = append(view.Blocks.BlockSet, dynamicBlocks...)
 
 	return view
+}
+
+func tzAdjustment(hour string, tzOffsetHours int) string {
+	i, _ := strconv.Atoi(hour)
+	adjusted := i + tzOffsetHours
+	if adjusted < 0 {
+		adjusted += 24
+	}
+	resp := strconv.Itoa(adjusted)
+	if len(resp) == 1 {
+		resp = fmt.Sprintf("0%s", resp)
+	}
+	return resp
 }

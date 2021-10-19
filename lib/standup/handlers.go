@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/chrispruitt/go-slackbot/lib/bot"
 	"github.com/chrispruitt/standup-bot/lib/types"
 	"github.com/chrispruitt/standup-bot/lib/views"
 	logger "github.com/sirupsen/logrus"
@@ -46,7 +47,15 @@ func openSettingsModal(cmd slack.SlashCommand) {
 
 	settings := getStandupSettings(cmd.ChannelID, cmd.ChannelName)
 
-	resp, err := webApi.OpenView(cmd.TriggerID, views.GetSettingsModal(settings))
+	users, err := bot.SlackClient.GetUsersInfo(cmd.UserID)
+	if err != nil {
+		logger.Error("Error getting users: ", err)
+		return
+	}
+
+	tzOffset := tzOffsetToHours((*users)[0].TZOffset)
+
+	resp, err := webApi.OpenView(cmd.TriggerID, views.GetSettingsModal(settings, tzOffset))
 	if err != nil {
 		log.Printf("Failed to opemn a modal: %v", err)
 	}
@@ -63,6 +72,12 @@ func submitSettingsModal(payload slack.InteractionCallback) {
 	meetingDays := payload.View.State.Values[views.ModalMeetingDaysBlockId][views.ModalMeetingDaysActionId].SelectedOptions
 	shame, _ := strconv.ParseBool(payload.View.State.Values[views.ModalShameBlockId][views.ModalShameActionId].SelectedOption.Value)
 	solicitMsg := payload.View.State.Values[views.ModalSolicitMessgaeBlockId][views.ModalSolicitMessageActionId].Value
+
+	// Timezone adjustment for input
+	solicitTime[0] = timezoneAdjustment(solicitTime[0], payload.User.TZOffset)
+	shareTime[0] = timezoneAdjustment(shareTime[0], payload.User.TZOffset)
+
+	fmt.Printf("CORRECTED: %s\n", solicitTime[0])
 
 	settings := types.StandupSettings{
 		ChannelID:       channelID,
@@ -104,14 +119,14 @@ func handleSettingsModalSelectChannelAction(payload slack.InteractionCallback) {
 	//  2. Update the view with new blocks using the 'initial_value' config
 
 	// Update view by removing blocks - no other way to dynamically change view values.
-	resp, err := webApi.UpdateView(views.GetSettingsModal(types.StandupSettings{}), payload.View.ExternalID, payload.View.Hash, payload.View.ID)
+	resp, err := webApi.UpdateView(views.GetSettingsModal(types.StandupSettings{}, 0), payload.View.ExternalID, payload.View.Hash, payload.View.ID)
 	if err != nil {
 		log.Printf("Failed to update a modal: %v", err)
 	}
 	socketMode.Debugf("views.update response: %v", resp)
 
 	// Update view with new initial values
-	resp, err = webApi.UpdateView(views.GetSettingsModal(settings), resp.ExternalID, resp.Hash, resp.ID)
+	resp, err = webApi.UpdateView(views.GetSettingsModal(settings, payload.User.TZOffset), resp.ExternalID, resp.Hash, resp.ID)
 	if err != nil {
 		log.Printf("Failed to opemn a modal: %v", err)
 	}
@@ -125,4 +140,17 @@ func meetingDaysToCron(meetingDays []slack.OptionBlockObject) string {
 		values = append(values, day.Value)
 	}
 	return strings.Join(values, ",")
+}
+
+func timezoneAdjustment(hour string, tzOffset int) string {
+	i, _ := strconv.Atoi(hour)
+	adjustment := i - tzOffsetToHours(tzOffset)
+	if adjustment > 23 {
+		adjustment -= 24
+	}
+	resp := strconv.Itoa(adjustment)
+	if len(resp) == 1 {
+		resp = fmt.Sprintf("0%s", resp)
+	}
+	return resp
 }

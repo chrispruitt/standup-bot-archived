@@ -58,6 +58,9 @@ func getShareStandupFunc(settings types.StandupSettings) func() {
 		bot.PostMessage(settings.ChannelID, header)
 
 		users, err := bot.SlackClient.GetUsersInfo(settings.Participants...)
+		if err != nil {
+			logger.Error("Error getting users: ", err)
+		}
 
 		conversations, err := getConversations()
 		if err != nil {
@@ -172,4 +175,8 @@ func reverse(ss []string) []string {
 		ss[i], ss[last-i] = ss[last-i], ss[i]
 	}
 	return ss
+}
+
+func tzOffsetToHours(offsetSeconds int) int {
+	return int(offsetSeconds / 3600)
 }

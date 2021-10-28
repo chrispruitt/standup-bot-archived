@@ -58,7 +58,6 @@ func getShareStandupFunc(settings types.StandupSettings) func() {
 		bot.PostMessage(settings.ChannelID, header)
 
 		users, err := bot.SlackClient.GetUsersInfo(settings.Participants...)
-
 		if err != nil {
 			logger.Error("Error getting users: ", err)
 		}
@@ -68,8 +67,9 @@ func getShareStandupFunc(settings types.StandupSettings) func() {
 			logger.Error("Error getting conversations: ", err)
 		}
 
-		// seed our random colors
+		// seed our random colors and randomize share order
 		rand.Seed(time.Now().UTC().UnixNano())
+		rand.Shuffle(len(*users), func(i, j int) { (*users)[i], (*users)[j] = (*users)[j], (*users)[i] })
 
 		for _, user := range *users {
 

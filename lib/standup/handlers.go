@@ -17,14 +17,21 @@ func handleSlashCommand(cmd slack.SlashCommand) {
 	case "":
 		openSettingsModal(cmd)
 	case "solicit":
-		settings := types.NewStandupSettings(cmd.ChannelID, cmd.ChannelName)
-		settings.Participants = []string{cmd.UserID}
-		getSolicitStandupFunc(*settings)()
+		// mock standup settings if none exist with user issuing the command else use the channels settings
+		settings := getStandupSettings(cmd.ChannelID, cmd.ChannelName)
+		if len(settings.Participants) == 0 {
+			settings.Participants = []string{cmd.UserID}
+			settings.Shame = true
+		}
+		getSolicitStandupFunc(settings)()
 	case "share":
-		settings := types.NewStandupSettings(cmd.ChannelID, cmd.ChannelName)
-		settings.Participants = []string{cmd.UserID}
-		settings.Shame = true
-		getShareStandupFunc(*settings)()
+		// mock standup settings if none exist with user issuing the command else use the channels settings
+		settings := getStandupSettings(cmd.ChannelID, cmd.ChannelName)
+		if len(settings.Participants) == 0 {
+			settings.Participants = []string{cmd.UserID}
+			settings.Shame = true
+		}
+		getShareStandupFunc(settings)()
 	default:
 		socketMode.Debugf("Ignored: %v", cmd)
 	}
